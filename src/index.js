@@ -10,29 +10,83 @@ app.use(cors());
 const users = [];
 
 function checksExistsUserAccount(request, response, next) {
-  // Complete aqui
+  const { username } = request.headers;
+
+  const user = users.find(user => user.username === username);
+
+  if(!user){
+    return response.status(404).json({ error: 'User not found!' });
+  }
+
+  request.user = user;
+
+  return next();
 }
 
 function checksCreateTodosUserAvailability(request, response, next) {
-  // Complete aqui
+  const { user } = request;
+
+  //Se o usuario possui plano gratis, mas com menos de 10 ToDo, OU se ele é pro
+  if(user.pro === false && user.todos.length === 10){
+    return response.status(403).json({ error: 'ToDo limit reached!' });
+  }
+
+  return next();
+
+  
 }
 
-function checksTodoExists(request, response, next) {
-  // Complete aqui
+function checksTodoExists (request, response, next) {
+  const { username } = request.headers;
+
+  const { id } = request.params;
+  const user = users.find(user => user.username === username);
+
+  if(!user){
+    return response.status(404).json({ error: 'User not found!' });
+  }
+
+  if(!validate(id)){
+    return response.status(400).json({ error: 'The ID is not a valid UUID' });
+  }
+
+  const todo = user.todos.find(todo => todo.id === id);
+
+  if(!todo){
+    return response.status(404).json({ error: 'The ID does not belong for a one user ToDo' });
+  }
+
+  request.user = user;
+  request.todo = todo;
+  return next();
 }
 
 function findUserById(request, response, next) {
-  // Complete aqui
+  const { id } = request.params;
+  const user = users.find((user) => user.id === id);
+
+  if(!user){
+    return response.status(404).json({ error: 'User not found!' });
+  }
+
+  request.user = user;
+  return next();
 }
 
-app.post('/users', (request, response) => {
-  const { name, username } = request.body;
+function checkUsernameAlreadyExists(request, response, next) {
+  const { username } = request.body;
 
   const usernameAlreadyExists = users.some((user) => user.username === username);
 
   if (usernameAlreadyExists) {
     return response.status(400).json({ error: 'Username already exists' });
   }
+
+  return next();
+}
+
+app.post('/users', checkUsernameAlreadyExists, (request, response) => {
+  const { name, username } = request.body;
 
   const user = {
     id: uuidv4(),
